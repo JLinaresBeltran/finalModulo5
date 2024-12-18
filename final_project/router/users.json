@@ -1,1 +1,6 @@
-"[]"
+[
+  {
+    "username": "persistentuser",
+    "password": "password123"
+  }
+]
