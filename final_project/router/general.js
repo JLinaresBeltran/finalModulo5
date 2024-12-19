@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
@@ -74,6 +75,59 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Get the book list available in the shop
+public_users.get('/', (req, res) => {
+  axios.get('http://localhost:5000/internal/books').then(response => {
+    res.status(200).json(response.data);
+  }).catch(error => {
+    console.error("Error fetching book list:", error);
+    res.status(500).json({ message: "Error fetching book list." });
+  });
+});
+
+// Get book details by ISBN
+public_users.get('/isbn/:isbn', (req, res) => {
+  const isbn = req.params.isbn;
+  axios.get(`http://localhost:5000/internal/books/${isbn}`).then(response => {
+    res.status(200).json(response.data);
+  }).catch(error => {
+    console.error(`Error fetching details for ISBN ${isbn}:`, error);
+    res.status(404).json({ message: "Book not found." });
+  });
+});
+
+// Get books by author
+public_users.get('/author/:author', (req, res) => {
+  const author = req.params.author.toLowerCase();
+  axios.get('http://localhost:5000/internal/books').then(response => {
+    const filteredBooks = Object.values(response.data).filter(book => book.author.toLowerCase() === author);
+    if (filteredBooks.length > 0) {
+      res.status(200).json(filteredBooks);
+    } else {
+      res.status(404).json({ message: "No books found by this author." });
+    }
+  }).catch(error => {
+    console.error(`Error fetching books by author ${author}:`, error);
+    res.status(500).json({ message: "Error fetching books by author." });
+  });
+});
+
+// Get books by title
+public_users.get('/title/:title', (req, res) => {
+  const title = req.params.title.toLowerCase();
+  axios.get('http://localhost:5000/internal/books').then(response => {
+    const filteredBooks = Object.values(response.data).filter(book => book.title.toLowerCase() === title);
+    if (filteredBooks.length > 0) {
+      res.status(200).json(filteredBooks);
+    } else {
+      res.status(404).json({ message: "No books found with this title." });
+    }
+  }).catch(error => {
+    console.error(`Error fetching books by title ${title}:`, error);
+    res.status(500).json({ message: "Error fetching books by title." });
+  });
+});
+
 // Add or update a review for a book
 public_users.put('/reviews/:isbn', authenticateToken, (req, res) => {
   const isbn = req.params.isbn;
@@ -94,72 +148,9 @@ public_users.put('/reviews/:isbn', authenticateToken, (req, res) => {
   return res.status(200).json({ message: "Review added/updated successfully.", reviews: book.reviews });
 });
 
-// Delete a review for a book
-public_users.delete('/reviews/:isbn', authenticateToken, (req, res) => {
-  const isbn = req.params.isbn;
-  const book = books[isbn];
-
-  if (!book) {
-    return res.status(404).json({ message: "Book not found." });
-  }
-
-  const username = req.user.username;
-  if (!book.reviews[username]) {
-    return res.status(404).json({ message: "Review not found for this user." });
-  }
-
-  delete book.reviews[username];
-  console.log(`User ${username} deleted their review for book ${isbn}`);
-  return res.status(200).json({ message: "Review deleted successfully.", reviews: book.reviews });
-});
-
-// Get the book list available in the shop
-public_users.get('/', function (req, res) {
+// Internal endpoint for fetching books (for simulation)
+public_users.get('/internal/books', (req, res) => {
   return res.status(200).json(books);
-});
-
-// Get book details by ISBN
-public_users.get('/isbn/:isbn', function (req, res) {
-  const isbn = req.params.isbn;
-  const book = books[isbn];
-  if (book) {
-    return res.status(200).json(book);
-  } else {
-    return res.status(404).json({message: "Book not found"});
-  }
-});
-
-// Get books by author
-public_users.get('/author/:author', function (req, res) {
-  const author = req.params.author.toLowerCase();
-  const filteredBooks = Object.values(books).filter(book => book.author.toLowerCase() === author);
-  if (filteredBooks.length > 0) {
-    return res.status(200).json(filteredBooks);
-  } else {
-    return res.status(404).json({message: "No books found by this author"});
-  }
-});
-
-// Get books by title
-public_users.get('/title/:title', function (req, res) {
-  const title = req.params.title.toLowerCase();
-  const filteredBooks = Object.values(books).filter(book => book.title.toLowerCase() === title);
-  if (filteredBooks.length > 0) {
-    return res.status(200).json(filteredBooks);
-  } else {
-    return res.status(404).json({message: "No books found with this title"});
-  }
-});
-
-// Get reviews of a book by ISBN
-public_users.get('/reviews/:isbn', function (req, res) {
-  const isbn = req.params.isbn;
-  const book = books[isbn];
-  if (book) {
-    return res.status(200).json(book.reviews);
-  } else {
-    return res.status(404).json({message: "Book not found"});
-  }
 });
 
 module.exports.general = public_users;
